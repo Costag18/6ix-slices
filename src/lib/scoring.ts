@@ -60,14 +60,9 @@ export function calculatePricePerPerson(
     0
   );
 
-  // Apply deal discounts (deals with a set price replace the total cost for
-  // that chain; deals without an explicit price are ignored here as they are
-  // context-specific bundle deals surfaced elsewhere).
-  for (const deal of dealsApplied) {
-    if (deal.price !== null && deal.price < totalCost) {
-      totalCost = deal.price;
-    }
-  }
+  // Deals are displayed for reference but don't override the pizza-based total.
+  // Individual deal prices (e.g. "$3.99 carry-out special") apply to single
+  // items, not to the whole order, so replacing the total would be incorrect.
 
   const costPerPerson = groupSize > 0 ? totalCost / groupSize : 0;
   return { totalCost, costPerPerson };
