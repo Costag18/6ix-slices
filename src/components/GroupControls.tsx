@@ -9,10 +9,10 @@ interface GroupControlsProps {
   onAppetiteChange: (value: AppetiteLevel) => void;
 }
 
-const APPETITE_OPTIONS: { value: AppetiteLevel; label: string; slices: number }[] = [
-  { value: "light", label: "Light", slices: 2 },
-  { value: "medium", label: "Medium", slices: 3 },
-  { value: "hungry", label: "Hungry", slices: 4 },
+const APPETITE_OPTIONS: { value: AppetiteLevel; label: string; desc: string }[] = [
+  { value: "light", label: "Light", desc: "~2 slices" },
+  { value: "medium", label: "Medium", desc: "~3 slices" },
+  { value: "hungry", label: "Hungry", desc: "~4 slices" },
 ];
 
 export function GroupControls({
@@ -47,7 +47,7 @@ export function GroupControls({
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium text-[var(--color-text)]">Appetite</span>
         <div className="flex gap-2">
-          {APPETITE_OPTIONS.map(({ value, label, slices }) => (
+          {APPETITE_OPTIONS.map(({ value, label, desc }) => (
             <button
               key={value}
               onClick={() => onAppetiteChange(value)}
@@ -58,7 +58,7 @@ export function GroupControls({
               }`}
             >
               <span className="block">{label}</span>
-              <span className="block text-xs opacity-75">{slices} slices</span>
+              <span className="block text-xs opacity-75">{desc}</span>
             </button>
           ))}
         </div>

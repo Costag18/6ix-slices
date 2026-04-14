@@ -1,10 +1,18 @@
 import type { Pizza } from "@/lib/types";
 import { normalizeSizeName, getSlicesForSize, getSquareInches } from "./normalize";
 
-interface PizzaNovaSize {
-  size: string;
-  price: number;
-  slices: number;
+interface PizzaNovaVariant {
+  productID: number;
+  masterProductID: number;
+  name: string;
+  size: number;
+  productPrice: number;
+  displayName: string;
+}
+
+interface PizzaNovaCustomizationConfig {
+  name: string;
+  variants: PizzaNovaVariant[];
 }
 
 interface PizzaNovaProduct {
@@ -12,9 +20,10 @@ interface PizzaNovaProduct {
   sku: string;
   name: string;
   description: string;
-  isVegetarian: boolean;
+  isVegetarian: string;
   recipeType: string;
-  sizes: PizzaNovaSize[];
+  productPrice: number;
+  customizationConfig: PizzaNovaCustomizationConfig[];
 }
 
 interface PizzaNovaNextData {
@@ -27,7 +36,7 @@ interface PizzaNovaNextData {
 
 function categorizeByName(name: string): Pizza["category"] {
   const lower = name.toLowerCase();
-  if (lower.includes("cheese") || lower === "margherita") return "cheese";
+  if (lower.includes("cheese") || lower.includes("margherita")) return "cheese";
   if (lower.includes("pepperoni")) return "pepperoni";
   if (
     lower.includes("veggie") ||
@@ -45,6 +54,11 @@ function categorizeByName(name: string): Pizza["category"] {
   return "custom";
 }
 
+function extractSlicesFromDisplayName(displayName: string): number | null {
+  const match = displayName.match(/(\d+)\s*(?:slices?|squares?)/i);
+  return match ? parseInt(match[1], 10) : null;
+}
+
 export function parsePizzaNovaData(data: PizzaNovaNextData): { pizzas: Pizza[] } {
   const now = new Date().toISOString();
 
@@ -52,32 +66,39 @@ export function parsePizzaNovaData(data: PizzaNovaNextData): { pizzas: Pizza[] }
 
   const pizzas: Pizza[] = products
     .filter((p) => p.recipeType === "PIZZA")
-    .flatMap((product) =>
-      product.sizes.map((s) => {
-        const size = normalizeSizeName(s.size);
+    .flatMap((product) => {
+      const config = product.customizationConfig?.[0];
+      if (!config?.variants?.length) return [];
+
+      return config.variants.map((variant) => {
+        // Size is a numeric code (e.g. 2=small, 3=medium, etc.)
+        // but displayName has the human label like "Small - 6 Slices"
+        const size = normalizeSizeName(variant.displayName);
+        const slices = extractSlicesFromDisplayName(variant.displayName) ?? getSlicesForSize(size);
+
         return {
-          id: `pizzanova-${product.sku}-${s.size.toLowerCase()}`,
+          id: `pizzanova-${product.sku}-${variant.size}`,
           chainId: "pizzanova",
-          name: product.name,
+          name: product.name.replace(/^\*NEW\*\s*/i, "").trim(),
           size,
-          slices: getSlicesForSize(size),
-          price: s.price,
+          slices,
+          price: variant.productPrice,
           toppingsIncluded: 0,
           squareInches: getSquareInches(size),
           category: categorizeByName(product.name),
           lastUpdated: now,
         } satisfies Pizza;
-      })
-    );
+      });
+    });
 
   return { pizzas };
 }
 
 export async function scrapePizzaNova(): Promise<{ pizzas: Pizza[] }> {
   const urls = [
-    "https://www.pizzanova.com/products/4505",
-    "https://www.pizzanova.com/products/4513",
-    "https://www.pizzanova.com/products/4494",
+    "https://www.pizzanova.com/products/signature-pizzas",
+    "https://www.pizzanova.com/products/create-your-own",
+    "https://www.pizzanova.com/products/other-favourites",
   ];
 
   const { load } = await import("cheerio");
@@ -86,7 +107,7 @@ export async function scrapePizzaNova(): Promise<{ pizzas: Pizza[] }> {
   const seenIds = new Set<string>();
 
   for (const url of urls) {
-    const res = await fetch(url);
+    const res = await fetch(url, { redirect: "follow" });
     if (!res.ok) {
       console.warn(`Pizza Nova fetch failed for ${url}: ${res.status}`);
       continue;

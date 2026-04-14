@@ -3,57 +3,71 @@ import { normalizeSizeName, getSlicesForSize, getSquareInches } from "./normaliz
 
 function categorizeByName(name: string): Pizza["category"] {
   const lower = name.toLowerCase();
-  if (lower.includes("cheese") || lower === "margherita") return "cheese";
-  if (lower.includes("pepperoni")) return "pepperoni";
+  if (lower.includes("cheese") || lower === "margherita" || lower.includes("margherita")) return "cheese";
+  if (lower.includes("pepperoni") || lower.includes("roni")) return "pepperoni";
   if (
     lower.includes("veggie") ||
     lower.includes("vegetarian") ||
+    lower.includes("vegan") ||
     lower.includes("supreme") ||
     lower.includes("deluxe") ||
     lower.includes("combo") ||
     lower.includes("meat") ||
     lower.includes("bbq") ||
     lower.includes("hawaiian") ||
+    lower.includes("honolulu") ||
     lower.includes("greek") ||
     lower.includes("mediterranean") ||
     lower.includes("godfather") ||
     lower.includes("sausage") ||
-    lower.includes("mushroom")
+    lower.includes("mushroom") ||
+    lower.includes("sicilian") ||
+    lower.includes("capone") ||
+    lower.includes("mafioso") ||
+    lower.includes("soprano")
   )
     return "specialty";
   return "custom";
 }
 
 export function parsePizzaioloHtml(html: string): { pizzas: Pizza[] } {
-  // Dynamic import of cheerio to allow tree-shaking in non-scrape paths
   const cheerio = require("cheerio") as typeof import("cheerio");
   const $ = cheerio.load(html);
 
   const now = new Date().toISOString();
   const pizzas: Pizza[] = [];
 
-  $(".product-card").each((_i, card) => {
-    const name = $(card).find(".product-name").text().trim();
+  // Each pizza card is .pizza-select > .pizza-card
+  $(".pizza-select").each((_i, card) => {
+    const name = $(card).find("h2.card-title").text().trim();
     if (!name) return;
 
+    // Each size is a <li> inside ul.category_pizza_sizes
     $(card)
-      .find(".price")
-      .each((_j, priceEl) => {
-        const dataSize = $(priceEl).attr("data-size") ?? "";
-        const priceText = $(priceEl).text().trim().replace("$", "");
+      .find("ul.category_pizza_sizes li")
+      .each((_j, li) => {
+        // Size name from the radio input value attribute (e.g. "medium", "large", "xlarge", "party")
+        const sizeValue = $(li).find("input.category_size_upgrade_btn").attr("value") ?? "";
+        // Price from span.right (e.g. "$19.76")
+        const priceText = $(li).find("span.right").text().trim().replace("$", "");
         const price = parseFloat(priceText);
 
-        if (!dataSize || isNaN(price)) return;
+        if (!sizeValue || isNaN(price)) return;
 
-        const size = normalizeSizeName(dataSize);
+        const size = normalizeSizeName(sizeValue);
         const slugName = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+
+        // Extract slices from label text like "Medium (8 slices)" if available
+        const labelText = $(li).find("label").text();
+        const slicesMatch = labelText.match(/\((\d+)\s*slices?\)/i);
+        const slices = slicesMatch ? parseInt(slicesMatch[1], 10) : getSlicesForSize(size);
 
         pizzas.push({
           id: `pizzaiolo-${slugName}-${size}`,
           chainId: "pizzaiolo",
           name,
           size,
-          slices: getSlicesForSize(size),
+          slices,
           price,
           toppingsIncluded: 0,
           squareInches: getSquareInches(size),
@@ -68,9 +82,9 @@ export function parsePizzaioloHtml(html: string): { pizzas: Pizza[] } {
 
 export async function scrapePizzaiolo(): Promise<{ pizzas: Pizza[] }> {
   const urls = [
-    "https://pizzaiolo.ca/en/menu/pizzas/classic-pizzas",
-    "https://pizzaiolo.ca/en/menu/pizzas/gourmet-pizzas",
-    "https://pizzaiolo.ca/en/menu/pizzas/vegetarian-pizzas",
+    "https://pizzaiolo.ca/orders/gourmet-meat-pizzas/categories",
+    "https://pizzaiolo.ca/orders/gourmet-vegetarian-pizzas/categories",
+    "https://pizzaiolo.ca/orders/gourmet-vegan-pizzas/categories",
   ];
 
   const allPizzas: Pizza[] = [];

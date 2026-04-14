@@ -58,50 +58,50 @@ const CHAIN_SEEDS = [
     id: "dominos",
     name: "Domino's",
     logo_url: "",
-    website_url: "https://www.dominos.ca",
+    website_url: "https://www.dominos.ca/pages/order/",
   },
   {
     id: "pizzanova",
     name: "Pizza Nova",
     logo_url: "",
-    website_url: "https://www.pizzanova.com",
+    website_url: "https://www.pizzanova.com/products/signature-pizzas",
   },
   {
     id: "pizzaiolo",
     name: "Pizzaiolo",
     logo_url: "",
-    website_url: "https://www.pizzaiolo.ca",
+    website_url: "https://pizzaiolo.ca/orders/menu",
   },
   {
     id: "pizzapizza",
     name: "Pizza Pizza",
     logo_url: "",
-    website_url: "https://www.pizzapizza.ca",
+    website_url: "https://www.pizzapizza.ca/menu/",
   },
   {
     id: "littlecaesars",
     name: "Little Caesars",
     logo_url: "",
-    website_url: "https://littlecaesars.com",
+    website_url: "https://order.littlecaesars.ca/en-ca/order",
   },
   {
     id: "pizzahut",
     name: "Pizza Hut",
     logo_url: "",
-    website_url: "https://www.pizzahut.ca",
+    website_url: "https://www.pizzahut.ca/menu/pizza",
   },
   {
     id: "papajohns",
     name: "Papa John's",
     logo_url: "",
-    website_url: "https://www.papajohns.ca",
+    website_url: "https://www.papajohns.ca/menu/pizza",
   },
 ];
 
 export async function seedChains(client: Client): Promise<void> {
   for (const chain of CHAIN_SEEDS) {
     await client.execute({
-      sql: `INSERT OR IGNORE INTO chains (id, name, logo_url, website_url) VALUES (?, ?, ?, ?)`,
+      sql: `INSERT OR REPLACE INTO chains (id, name, logo_url, website_url) VALUES (?, ?, ?, ?)`,
       args: [chain.id, chain.name, chain.logo_url, chain.website_url],
     });
   }

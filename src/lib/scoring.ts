@@ -5,7 +5,7 @@ import type {
   AppetiteLevel,
   ChainRecommendation,
 } from "@/lib/types";
-import { SLICES_PER_PERSON, PIZZA_DIAMETERS } from "@/lib/types";
+import { AREA_PER_PERSON, PIZZA_DIAMETERS, TAX_RATE } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Helper: estimate square inches from pizza size if not stored on the record
@@ -22,8 +22,9 @@ function getSquareInches(pizza: Pizza): number {
 
 // ---------------------------------------------------------------------------
 // calculatePizzasNeeded
-// Picks the single pizza (by lowest cost-per-slice) and returns the quantity
-// needed to feed the group at the given appetite level.
+// Picks the single pizza with the lowest cost-per-square-inch, then calculates
+// how many are needed to provide enough total area for the group.
+// This ensures a small pizza slice isn't weighted the same as a large one.
 // ---------------------------------------------------------------------------
 export function calculatePizzasNeeded(
   groupSize: number,
@@ -32,16 +33,19 @@ export function calculatePizzasNeeded(
 ): { pizza: Pizza; quantity: number }[] {
   if (pizzas.length === 0) return [];
 
-  const slicesNeeded = groupSize * SLICES_PER_PERSON[appetite];
+  const totalAreaNeeded = groupSize * AREA_PER_PERSON[appetite];
 
-  // Pick the pizza with the lowest cost per slice
+  // Pick the pizza with the lowest cost per square inch
   const best = pizzas.reduce((prev, curr) => {
-    const prevCps = prev.price / prev.slices;
-    const currCps = curr.price / curr.slices;
-    return currCps < prevCps ? curr : prev;
+    const prevArea = getSquareInches(prev);
+    const currArea = getSquareInches(curr);
+    const prevCpsi = prevArea > 0 ? prev.price / prevArea : Infinity;
+    const currCpsi = currArea > 0 ? curr.price / currArea : Infinity;
+    return currCpsi < prevCpsi ? curr : prev;
   });
 
-  const quantity = Math.ceil(slicesNeeded / best.slices);
+  const bestArea = getSquareInches(best);
+  const quantity = bestArea > 0 ? Math.ceil(totalAreaNeeded / bestArea) : 1;
   return [{ pizza: best, quantity }];
 }
 
@@ -55,7 +59,7 @@ export function calculatePricePerPerson(
   dealsApplied: Deal[],
   groupSize: number
 ): { totalCost: number; costPerPerson: number } {
-  let totalCost = pizzasNeeded.reduce(
+  const subtotal = pizzasNeeded.reduce(
     (sum, { pizza, quantity }) => sum + pizza.price * quantity,
     0
   );
@@ -63,6 +67,9 @@ export function calculatePricePerPerson(
   // Deals are displayed for reference but don't override the pizza-based total.
   // Individual deal prices (e.g. "$3.99 carry-out special") apply to single
   // items, not to the whole order, so replacing the total would be incorrect.
+
+  // Apply Ontario HST (13%)
+  const totalCost = subtotal * (1 + TAX_RATE);
 
   const costPerPerson = groupSize > 0 ? totalCost / groupSize : 0;
   return { totalCost, costPerPerson };
@@ -186,12 +193,31 @@ function buildRecommendations(
     const bestPizza = pizzasNeeded[0]?.pizza ?? chainPizzas[0];
     const valueScore = calculateValueScore(bestPizza, activeDeal);
 
+    // Only include deals that actually beat the best per-pizza price found.
+    // A deal is "helpful" if its price per sq-inch of pizza area is lower than
+    // the best pizza option, or if it's a bundle that covers enough people.
+    const bestPizzaPricePerSqIn =
+      bestPizza && getSquareInches(bestPizza) > 0
+        ? bestPizza.price / getSquareInches(bestPizza)
+        : Infinity;
+    const helpfulDeals = chainDeals.filter((d) => {
+      if (d.price === null) return false;
+      // Only evaluate deals that have structured itemsIncluded data
+      const pizzaItems = d.itemsIncluded.filter((i) =>
+        i.toLowerCase().includes("pizza")
+      );
+      if (pizzaItems.length === 0) return false;
+      const equivalentArea = pizzaItems.length * getSquareInches(bestPizza ?? chainPizzas[0]);
+      const dealPricePerSqIn = equivalentArea > 0 ? d.price / equivalentArea : Infinity;
+      return dealPricePerSqIn < bestPizzaPricePerSqIn;
+    });
+
     recommendations.push({
       chain,
       totalCost,
       costPerPerson,
       pizzasNeeded,
-      dealsApplied: chainDeals,
+      dealsApplied: helpfulDeals,
       valueScore,
     });
   }

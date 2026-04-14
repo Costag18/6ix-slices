@@ -56,10 +56,13 @@ export interface DealsResponse {
 
 export type AppetiteLevel = "light" | "medium" | "hungry";
 
-export const SLICES_PER_PERSON: Record<AppetiteLevel, number> = {
-  light: 2,
-  medium: 3,
-  hungry: 4,
+// Area-based appetite: sq inches per person, based on standard large (14") slices.
+// Large pizza = π × 7² ≈ 153.94 sq in / 8 slices ≈ 19.24 sq in per slice.
+const LARGE_SLICE_AREA = Math.PI * 7 * 7 / 8; // ~19.24 sq in
+export const AREA_PER_PERSON: Record<AppetiteLevel, number> = {
+  light: 2 * LARGE_SLICE_AREA,   // ~38.48 sq in
+  medium: 3 * LARGE_SLICE_AREA,  // ~57.73 sq in
+  hungry: 4 * LARGE_SLICE_AREA,  // ~76.97 sq in
 };
 
 export type ComparisonMode = "price-per-person" | "value-score";
@@ -80,6 +83,9 @@ export const PIZZA_DIAMETERS: Record<PizzaSize, number> = {
   xlarge: 16,
   party: 18,
 };
+
+// Ontario HST (Toronto)
+export const TAX_RATE = 0.13;
 
 export const STALENESS_THRESHOLDS = {
   tier1: 6 * 60 * 60 * 1000,

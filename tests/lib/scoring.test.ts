@@ -58,7 +58,7 @@ describe("calculatePizzasNeeded", () => {
     expect(result[0].quantity).toBe(10);
   });
 
-  it("picks cheapest pizza per slice when multiple sizes available", () => {
+  it("picks cheapest pizza per square inch when multiple sizes available", () => {
     const result = calculatePizzasNeeded(10, "medium", [
       mockLargePizza,
       mockMediumPizza,
@@ -74,8 +74,9 @@ describe("calculatePricePerPerson", () => {
       [],
       10
     );
-    expect(result.totalCost).toBeCloseTo(59.96, 2);
-    expect(result.costPerPerson).toBeCloseTo(5.996, 2);
+    // 4 × $14.99 = $59.96 + 13% HST = $67.75
+    expect(result.totalCost).toBeCloseTo(67.75, 1);
+    expect(result.costPerPerson).toBeCloseTo(6.775, 1);
   });
 });
 

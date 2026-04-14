@@ -1,6 +1,7 @@
 "use client";
 
 import type { ChainRecommendation, ComparisonMode } from "@/lib/types";
+import { TAX_RATE } from "@/lib/types";
 
 interface DealCardProps {
   recommendation: ChainRecommendation;
@@ -44,7 +45,7 @@ export function DealCard({
             </h3>
             {hasDeals && (
               <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
-                Promo applied
+                Deals available
               </span>
             )}
           </div>
@@ -90,7 +91,7 @@ export function DealCard({
           <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] mb-2">
             Breakdown
           </h4>
-          <ul className="space-y-1 mb-3">
+          <ul className="space-y-1 mb-1">
             {pizzasNeeded.map(({ pizza, quantity }) => (
               <li key={pizza.id} className="flex justify-between text-sm">
                 <span className="text-[var(--color-text)]">
@@ -102,19 +103,36 @@ export function DealCard({
               </li>
             ))}
           </ul>
+          {(() => {
+            const subtotal = pizzasNeeded.reduce((s, { pizza, quantity }) => s + pizza.price * quantity, 0);
+            const tax = subtotal * TAX_RATE;
+            return (
+              <div className="flex justify-between text-sm text-[var(--color-text-muted)] mb-3 pt-1 border-t border-gray-50">
+                <span>HST (13%)</span>
+                <span>${tax.toFixed(2)}</span>
+              </div>
+            );
+          })()}
 
-          {/* Deals applied */}
+          {/* Deals available */}
           {hasDeals && (
             <>
               <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] mb-2">
-                Deals Applied
+                Deals Available
               </h4>
               <ul className="space-y-1 mb-3">
                 {dealsApplied.map((deal) => (
                   <li key={deal.id} className="text-sm">
-                    <span className="text-green-700 font-medium">{deal.name}</span>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-green-700 font-medium">{deal.name}</span>
+                      {deal.price !== null && (
+                        <span className="text-[var(--color-tomato)] font-bold whitespace-nowrap">
+                          ${deal.price.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
                     {deal.promoCode && (
-                      <span className="ml-2 px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-[var(--color-text-muted)]">
+                      <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-[var(--color-text-muted)]">
                         {deal.promoCode}
                       </span>
                     )}

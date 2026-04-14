@@ -109,17 +109,16 @@ export default function Home() {
           }
         }
 
-        // Check staleness for tier2 chains (fire-and-forget batch)
-        const anyTier2Stale = TIER2_CHAINS.some((chainId) => {
+        // Check staleness for tier2 chains (refresh individually like tier1)
+        for (const chainId of TIER2_CHAINS) {
           const ts = timestamps[chainId];
-          return (
+          const isStale =
             ts === null ||
             ts === undefined ||
-            now - new Date(ts).getTime() > STALENESS_THRESHOLDS.tier2
-          );
-        });
-        if (anyTier2Stale) {
-          fetch("/api/refresh/tier2", { method: "POST" });
+            now - new Date(ts).getTime() > STALENESS_THRESHOLDS.tier2;
+          if (isStale) {
+            refreshChain(chainId);
+          }
         }
       } catch {
         setIsInitialLoad(false);

@@ -63,21 +63,36 @@ export function parseDominosMenu(data: DominosMenuResponse): {
       };
     });
 
-  // Parse coupons as deals
-  const deals: Deal[] = Object.values(data.Coupons).map((c) => ({
-    id: `dominos-coupon-${c.Code}`,
-    chainId: "dominos",
-    name: c.Name,
-    description: c.Description ?? null,
-    price: c.Price ? parseFloat(c.Price) : null,
-    itemsIncluded: [],
-    minPeople: null,
-    maxPeople: null,
-    promoCode: c.Code,
-    validDays: null,
-    validHours: null,
-    lastUpdated: now,
-  }));
+  // Parse coupons as deals — extract pizza items from coupon name
+  const deals: Deal[] = Object.values(data.Coupons).map((c) => {
+    // Try to extract pizza item descriptions from the coupon name
+    // e.g. "Carry Out Special - 1 Large 1 Topping Pizza" → ["1x Large pizza"]
+    // e.g. "Unlimited Large 2 Topping Pizzas" → ["1x Large pizza"]
+    const items: string[] = [];
+    const name = c.Name ?? "";
+    const pizzaMatch = name.match(/(\d+)\s+(Small|Medium|Large|Extra Large|XL)\b.*?Pizza/i);
+    if (pizzaMatch) {
+      items.push(`${pizzaMatch[1]}x ${pizzaMatch[2]} pizza`);
+    } else if (/pizza/i.test(name) && /(Small|Medium|Large|Extra Large|XL)\b/i.test(name)) {
+      const sizeMatch = name.match(/(Small|Medium|Large|Extra Large|XL)\b/i);
+      if (sizeMatch) items.push(`1x ${sizeMatch[1]} pizza`);
+    }
+
+    return {
+      id: `dominos-coupon-${c.Code}`,
+      chainId: "dominos",
+      name: c.Name,
+      description: c.Description ?? null,
+      price: c.Price ? parseFloat(c.Price) : null,
+      itemsIncluded: items,
+      minPeople: null,
+      maxPeople: null,
+      promoCode: c.Code,
+      validDays: null,
+      validHours: null,
+      lastUpdated: now,
+    };
+  });
 
   return { pizzas, deals };
 }
